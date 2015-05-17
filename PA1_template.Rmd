@@ -1,25 +1,225 @@
----
-title: "Reproducible Research: Peer Assessment 1"
-output: 
-  html_document:
-    keep_md: true
----
+Activity Monitoring
+===================
+
+Activity Monitoring allows to collect data on the quantity of steps an individual makes. The sample of this study has been collected at five minute intervals throughout the months of October and November 2012.
+
+### Loading and preprocessing data
+
+The following code loads the raw data file into the variable raw_data, provided the file has been stored in the current working directory.
+
+```{r loading_data, echo=TRUE}
+data<-read.csv("activity.csv", header=TRUE)
+```
+
+For a first impression of the data on hand, it is useful to check the structure of the new data frame and the first and last couple of lines:
+
+```{r structure, echo=TRUE}
+str(data)
+head(data)
+tail(data)
+```
+
+The str function shows that the date is formatted as factor, and the interval is not in a time format, but mimicking a time format. This doesn't seem useful for most analysis and needs to be adressed. The interval can be split up in hours and minutes with integer division by 100 ( %/% ) and modulo operation ( %% ). As date and time formats in R used seconds since a starting date as storage format, the time can be integrated in the date by adding minutes times 60 and hours times 60 times 60 (giving time in seconds).
+As keeping the date as a factor is helpful for all per day analysis, a new variable for the date is created.
+
+```{r reformat, echo=TRUE}
+data$intsec<-((data$interval %/% 100)*60*60 + (data$interval %% 100)*60)
+data$dat<-strptime(as.character(data$date), "%Y-%m-%d") ## Formatting date in a date format
+data$dat<-data$dat + data$intsec
+data$time<-strftime(data$dat, format="%H:%M")
+data$datum<-strptime(data$dat, format="%Y-%m-%d")
+head(data)
+tail(data)
+```
+
+It is quite clear from the data that there are many NA values in the steps variable, but there might be NAs in the other variables as well.
+
+```{r NAs, echo=TRUE}
+any(is.na(data$steps))
+any(is.na(data$date))
+any(is.na(data$interval))
+```
+
+So there are only missing values in the steps variable which will be handled later in the analysis.
 
 
-## Loading and preprocessing the data
+### What is mean total number of steps taken per day?
+
+For answering questions about the activity per day, the sum of steps per day (over all intervals) needs to be calculated and stored.
+
+```{r perday1, echo=TRUE}
+sspd<-split(data, data$date) ## Split the dataframe according to the date
+spd<-sapply(sspd, function (x) sum(x["steps"], na.rm=TRUE)) ## Calculate the sum of steps per day
+rm(sspd)
+perday<-data.frame(date=unique(data$datum), steps=spd) ## Create data.frame for summary data per day
+row.names(perday)<-NULL
+```
+
+The dataframe perday now contains information on the steps taken per day:
+
+```{r perday2, echo=TRUE}
+perday
+```
+
+Note that missing values have not yet been imputated. The number of steps shown here are therefore only a lower limit for the steps taken.
+ 
+```{r perday3, echo=TRUE}
+m1<-round(mean(perday$steps), 1)
+m2<-as.integer(median(perday$steps))
+## These calculations are used to report the mean and median of the steps taken in the text below and for creating the histogram.
+```
+
+The mean of the steps taken per day is `r m1`, the median of the steps taken per day `r m2`.
+The following histogram shows the distribution of steps per day (mean indicated with a red line, median with a blue line):
+
+```{r histperday, echo=TRUE}
+hist(perday$steps, breaks=9, main="", xlab="Steps per day")
+abline(v=m1, col="red")
+abline(v=m2, col="blue")
+```
 
 
+### What is the average daily activity pattern?
 
-## What is mean total number of steps taken per day?
+Regarding the average daily activity pattern, averages of the steps per interval over all days need to be computed and stored.
+
+```{r perint1, echo=TRUE}
+sspi<-split(data, data$interval) ## Split the dataframe according to the interval
+spi<-sapply(sspi, function(x) colMeans(x["steps"], na.rm=TRUE)) ## Calculate the mean of steps per interval
+rm(sspi)
+perint<-data.frame(interval=unique(data$time), avsteps=spi) ## Create data.frame for summary data per interval
+row.names(perint)<-NULL
+```
+
+The following plot shows the resulting data:
+
+```{r perint2, echo=TRUE}
+plot(strptime(perint$interval, format="%H:%M"), perint$avsteps, type="l", lty=1, xlab="Interval", ylab="Mean steps")
+```
+
+The interval with the maximum of average steps can easily be calculated from the data:
+
+```{r perint3, echo=TRUE}
+maxi<-0
+ind<-0
+for(i in 1:length(perint$interval)) {
+        if (perint[i,2]>maxi) {
+                maxi<-perint[i,2]
+                ind<-i
+        }
+}
+maximum<-round(maxi,1) ## Maximum of average steps rounded to one decimal digit
+inter<-perint[ind,1] ## and according interval calculated for use in the following text
+```
+
+The maximum of average steps during one interval is `r maximum` which is reached at `r inter`.
 
 
+### Imputing missing values
 
-## What is the average daily activity pattern?
+As seen above, there are only missing values in the steps column of the original data.
+
+```{r nas, echo=TRUE}
+nas<-is.na(data$steps)
+nona<-sum(nas) ## Calculation sum of NAs using the fact that TRUEs are coerced to "1" and FALSES to "0" when calculating numerical.
+lendata<-length(nas)
+percent<-round(nona/lendata*100, 1)
+```
+
+There are `r nona` missing values in the steps column from the `r lendata` values total (which is `r percent`% NAs). As an approach for imputating those values, the average of steps for the specific interval shall be taken. The data with imputated values is stored in a new data.frame.
+
+```{r imputation, echo=TRUE}
+## Creating new dataframe
+dataimp<-data
+## Imputating values
+for(i in 1:length(data$steps)) {
+        if (is.na(dataimp[i,1])) {
+                introw<-(data[i,4] %/% 300)+1
+                dataimp[i,1]<-perint[introw,2]
+        }
+}
+head(dataimp)
+tail(dataimp)
+```
+
+Now, steps per day as well as their mean and median are calculated again, using imputated data.
+
+```{r perdayimp1, echo=TRUE}
+sspdimp<-split(dataimp, dataimp$date) ## Split the dataframe according to the date
+spdimp<-sapply(sspdimp, function (x) sum(x["steps"], na.rm=TRUE)) ## Calculate the sum of steps per day
+rm(sspdimp)
+perdayimp<-data.frame(date=unique(dataimp$datum), steps=spdimp) ## Create data.frame for summary data per day
+row.names(perdayimp)<-NULL
+```
+
+The dataframe perday now contains information on the steps taken per day:
+
+```{r perdayimp2, echo=TRUE}
+perdayimp
+```
+
+Note that missing values have not yet been imputated. The number of steps shown here are therefore only a lower limit for the steps taken.
+ 
+```{r perdayimp3, echo=TRUE}
+m1imp<-as.integer(round(mean(perdayimp$steps), 0))
+m2imp<-as.integer(median(perdayimp$steps))
+## These calculations are used to report the mean and median of the steps taken in the text below and for creating the histogram.
+```
+
+The mean of the steps taken per day is `r m1imp`, the median of the steps taken per day `r m2imp`.
+The following histogram shows the distribution of steps per day (mean indicated with a red line, median with a blue line):
+
+```{r histperdayimp, echo=TRUE}
+hist(perdayimp$steps, breaks=9, main="", xlab="Steps per day (with imputated values)")
+abline(v=m1imp, col="red", lwd=3)
+abline(v=m2imp, col="blue")
+```
+
+As a comparison, the original histogram again:
+
+```{r histperday2, echo=TRUE}
+hist(perday$steps, breaks=9, main="", xlab="Steps per day (without imputated values)")
+abline(v=m1, col="red")
+abline(v=m2, col="blue")
+```
+
+The pattern of the data seems quite similar, except for the days with 0 or very few steps, which has been reduced quite a lot after imputation. In general, the number of steps after imputation is higher, but that isn't a surprise as the data without imputated values could be used as an estimate for the lower limit of steps.
 
 
+### Are there differences in activity patterns between weekdays and weekends?
 
-## Imputing missing values
+First, a new factor variable has to be created that indicates whether a row of data belongs to a weekday or weekend. The average number of steps per interval has to be calculated for weekdays and weekends.
 
 
+```{r weekd, echo=TRUE}
+## Doing this assignment outside US - changing settings for getting English weekday names.
+Sys.setlocale("LC_TIME", "English")
 
-## Are there differences in activity patterns between weekdays and weekends?
+## Adding factor variable for weekdays/weekends
+dataimp$wd<-weekdays(dataimp$dat)
+dataimp$wed<-"weekday"
+for(i in 1:length(dataimp$wed)) {
+        if (dataimp[i,8]=="Saturday"|dataimp[i,8]=="Sunday") {dataimp[i,9]<-"weekend"}
+}
+dataimp$wed<-as.factor(dataimp$wed)
+
+## Calculating average number of steps per interval, seperate for weeksdays and weekends
+sspiw<-split(dataimp, list(dataimp$interval, dataimp$wed))
+spiw<-sapply(sspiw, function(x) colMeans(x["steps"], na.rm=TRUE)) ## Calculate the mean of steps per interval and wd/we
+rm(sspiw)
+## Create data.frame for summary data per interval
+perintw<-data.frame(interval=unique(dataimp$time), format="%H:%M")
+perintw<-rbind(perintw, perintw)
+perintw$wed<-as.factor(c(rep("Weekday",288), rep("Weekend",288)))
+perintw$avsteps<-spiw
+str(perintw)
+row.names(perintw)<-NULL
+```
+
+Afterwards, a time series panel plot can be created:
+
+```{r panelplot, echo=TRUE}
+## install.packages("lattice") ## Only has to be done if lattice has not yet been installed.
+library(lattice)
+xyplot(avsteps ~ interval | wed, perintw, layout=c(1,2), type="l", xlab="Interval", ylab="Number of steps")
+```
