@@ -158,8 +158,7 @@ The dataframe perday now contains information on the steps taken per day:
 perdayimp
 ```
 
-Note that missing values have not yet been imputated. The number of steps shown here are therefore only a lower limit for the steps taken.
- 
+
 ```{r perdayimp3, echo=TRUE}
 m1imp<-as.integer(round(mean(perdayimp$steps), 0))
 m2imp<-as.integer(median(perdayimp$steps))

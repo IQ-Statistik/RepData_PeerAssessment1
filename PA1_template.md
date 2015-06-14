@@ -425,8 +425,7 @@ perdayimp
 ## 61 2012-11-30 10766.19
 ```
 
-Note that missing values have not yet been imputated. The number of steps shown here are therefore only a lower limit for the steps taken.
- 
+
 
 ```r
 m1imp<-as.integer(round(mean(perdayimp$steps), 0))
@@ -514,6 +513,13 @@ Afterwards, a time series panel plot can be created:
 ```r
 ## install.packages("lattice") ## Only has to be done if lattice has not yet been installed.
 library(lattice)
+```
+
+```
+## Warning: package 'lattice' was built under R version 3.1.3
+```
+
+```r
 xyplot(avsteps ~ interval | wed, perintw, layout=c(1,2), type="l", xlab="Interval", ylab="Number of steps")
 ```
 
