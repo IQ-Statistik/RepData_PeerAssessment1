@@ -518,3 +518,5 @@ xyplot(avsteps ~ interval | wed, perintw, layout=c(1,2), type="l", xlab="Interva
 ```
 
 ![plot of chunk panelplot](figure/panelplot-1.png) 
+
+A first inspection of the data shows that there are quite some differences in the time patterns of activities between weekdays and weekends.

@@ -223,3 +223,5 @@ Afterwards, a time series panel plot can be created:
 library(lattice)
 xyplot(avsteps ~ interval | wed, perintw, layout=c(1,2), type="l", xlab="Interval", ylab="Number of steps")
 ```
+
+A first inspection of the data shows that there are quite some differences in the time patterns of activities between weekdays and weekends.
